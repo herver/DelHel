@@ -23,7 +23,7 @@ CDelHel::CDelHel() : EuroScopePlugIn::CPlugIn(
 	this->RegisterTagItemFunction("Process FPL (non-NAP)", TAG_FUNC_PROCESS_FP_NON_NAP);
 	this->RegisterTagItemFunction("Process FPL (NAP)", TAG_FUNC_PROCESS_FP_NAP);
 
-	this->debug = false;
+	this->debug = true;
 	this->updateCheck = false;
 	this->assignNap = false;
 	this->autoProcess = false;
