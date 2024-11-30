@@ -28,9 +28,9 @@ std::ostream& operator<<(std::ostream& os, const route_entry& re)
 
 	if (re.waypoints.size() > 0) {
 		os << "(";
-		for (int i = 0; i < re.waypoints.size(); i++) {
+		for (int i = 0; i < signed(re.waypoints.size()); i++) {
 			os << re.waypoints[i];
-			if (i < re.waypoints.size() - 1) {
+			if (i < signed(re.waypoints.size()) - 1) {
 				os << ",";
 			}
 		}

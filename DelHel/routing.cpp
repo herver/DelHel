@@ -14,9 +14,9 @@ std::ostream& operator<<(std::ostream& os, const routing& rt)
 
     os << rt.minlvl << "<RFL<" << rt.maxlvl << "): ";
 
-    for (int i = 0; i < rt.waypts.size(); i++) {
+    for (int i = 0; i < signed(rt.waypts.size()); i++) {
         os << rt.waypts[i];
-        if (i < rt.waypts.size() - 1) {
+        if (i < signed(rt.waypts.size()) - 1) {
             os << ";";
         }
     }
