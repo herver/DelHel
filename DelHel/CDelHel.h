@@ -8,6 +8,7 @@
 #include <fstream>
 #include <filesystem>
 #include <algorithm>
+#include <psapi.h>
 
 #include "EuroScope/EuroScopePlugIn.h"
 #include "semver/semver.hpp"
@@ -19,6 +20,7 @@
 #include "validation.h"
 #include "flightplan.h"
 #include "sid.h"
+#include "RadarScreen.h"
 
 using json = nlohmann::json;
 using namespace std::chrono_literals;
@@ -35,6 +37,7 @@ public:
 	void OnTimer(int Counter);
 	void OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan);
 	void OnAirportRunwayActivityChanged();
+	EuroScopePlugIn::CRadarScreen* OnRadarScreenCreated(const char* sDisplayName, bool NeedRadarContent, bool GeoReferenced, bool CanBeSaved, bool CanBeCreated);
 
 private:
 	bool debug;
@@ -45,9 +48,13 @@ private:
 	bool logMinMaxRFL;
 	bool checkMinMaxRFL;
 	bool flashOnMessage;
+	bool topSkyAvailable;
+	bool ccamsAvailable;
+	bool preferTopSkySquawkAssignment;
 	std::future<std::string> latestVersion;
 	std::map<std::string, airport> airports;
 	std::vector<std::string> processed;
+	RadarScreen* radarScreen;
 
 	void LoadSettings();
 	void SaveSettings();
@@ -66,5 +73,6 @@ private:
 	void LogDebugMessage(std::string message, std::string type);
 
 	void CheckForUpdate();
+	void CheckLoadedPlugins();
 };
 
