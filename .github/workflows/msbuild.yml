@@ -7,9 +7,9 @@ name: MSBuild
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "vaccfr", ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "vaccfr" ]
 
 env:
   # Path to the solution file relative to the root of the project.
