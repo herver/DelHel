@@ -48,4 +48,6 @@ jobs:
       with:
         tag_name: ${{ steps.relinfo.outputs.release }}
         files: |
-          DelHel\Release\DelHel.dll
+          build/Release/DelHel.dll
+          build/Release/airports.json
+          build/Release/routing.json
