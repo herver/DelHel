@@ -21,7 +21,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-and-release:
     runs-on: windows-latest
     environment: Release
 
@@ -48,4 +48,4 @@ jobs:
       with:
         tag_name: ${{ steps.relinfo.outputs.release }}
         files: |
-          Release\DelHel.dll
+          DelHel\Release\DelHel.dll
