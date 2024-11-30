@@ -91,7 +91,7 @@
     <ClInclude Include="routing.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="RadarScreen.h">
+    <ClInclude Include="..\include\EuroScope\EuroScopePlugIn.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

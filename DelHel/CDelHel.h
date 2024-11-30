@@ -43,6 +43,7 @@ private:
 	bool debug;
 	bool updateCheck;
 	bool assignNap;
+	bool unlink;
 	bool autoProcess;
 	bool warnRFLBelowCFL;
 	bool logMinMaxRFL;

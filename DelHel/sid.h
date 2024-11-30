@@ -5,9 +5,16 @@
 
 struct sidinfo {
 	std::string rwy;
-	std::string dep;
+	std::string jet_dep;
+	std::string unlink_jet_dep;
+	std::string prop_dep;
+	std::string unlink_prop_dep;
 	std::string nap;
 	int prio{};
+	int cfl{};
+	int unlink_cfl{};
+	int cfl_prop{};
+	int unlink_cfl_prop{};
 };
 
 struct sid {

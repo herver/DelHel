@@ -36,6 +36,7 @@ CDelHel::CDelHel() : EuroScopePlugIn::CPlugIn(
 	this->topSkyAvailable = false;
 	this->ccamsAvailable = false;
 	this->preferTopSkySquawkAssignment = false;
+	this->unlink = false;
 
 	this->LoadSettings();
 	this->CheckLoadedPlugins();
@@ -91,6 +92,18 @@ bool CDelHel::OnCompileCommand(const char* sCommandLine)
 			this->updateCheck = !this->updateCheck;
 
 			this->SaveSettings();
+
+			return true;
+		}
+		else if (args[1] == "unlink") {
+			if (this->unlink) {
+				this->LogMessage("No longer assigning Unlink SIDs", "Config");
+			}
+			else {
+				this->LogMessage("Assigning Unlink SIDs", "Config");
+			}
+
+			this->unlink = !this->unlink;
 
 			return true;
 		}
@@ -226,6 +239,8 @@ void CDelHel::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan, EuroScopePlu
 	case TAG_ITEM_FP_VALIDATION:
 		validation res = this->ProcessFlightPlan(FlightPlan, this->assignNap, true);
 
+		//this->LogDebugMessage("Plan de vol non valide " + res.tag);
+
 		if (res.valid && std::find(this->processed.begin(), this->processed.end(), FlightPlan.GetCallsign()) != this->processed.end()) {
 			if (res.tag.empty()) {
 				strcpy_s(sItemString, 16, "OK");
@@ -253,7 +268,7 @@ void CDelHel::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan, EuroScopePlu
 				*pRGB = res.color;
 			}
 		}
-		
+
 		break;
 	}
 }
@@ -325,6 +340,7 @@ void CDelHel::LoadSettings()
 		std::istringstream(splitSettings[0]) >> this->debug;
 		std::istringstream(splitSettings[1]) >> this->updateCheck;
 		std::istringstream(splitSettings[2]) >> this->assignNap;
+		std::istringstream(splitSettings[2]) >> this->unlink;
 		std::istringstream(splitSettings[3]) >> this->warnRFLBelowCFL;
 		std::istringstream(splitSettings[4]) >> this->logMinMaxRFL;
 		std::istringstream(splitSettings[5]) >> this->checkMinMaxRFL;
@@ -344,6 +360,7 @@ void CDelHel::SaveSettings()
 	ss << this->debug << SETTINGS_DELIMITER
 		<< this->updateCheck << SETTINGS_DELIMITER
 		<< this->assignNap << SETTINGS_DELIMITER
+		<< this->unlink << SETTINGS_DELIMITER
 		<< this->warnRFLBelowCFL << SETTINGS_DELIMITER
 		<< this->logMinMaxRFL << SETTINGS_DELIMITER
 		<< this->checkMinMaxRFL << SETTINGS_DELIMITER
@@ -468,9 +485,16 @@ void CDelHel::ReadAirportConfig()
 			for (auto it = jrwys.items().begin(); it != jrwys.items().end(); ++it) {
 				sidinfo si{
 					it.key(), // rwy
-					it.value().value<std::string>("dep", ""), // dep
+					it.value().value<std::string>("jet_dep", ""), // dep
+					it.value().value<std::string>("unlink_jet_dep", it.value().value<std::string>("jet_dep", "")), // Unlink Departure for LFFF
+					it.value().value<std::string>("prop_dep", ""), // dep
+					it.value().value<std::string>("unlink_prop_dep", it.value().value<std::string>("prop_dep", "")), // Unlink Departure for LFFF
 					it.value().value<std::string>("nap", ""), // nap
-					it.value().value<int>("prio", 0) // prio
+					it.value().value<int>("prio", 0), // prio
+					it.value().value<int>("cfl", 0), // cfl
+					it.value().value<int>("cfl_prop", 0), // cfl
+					it.value().value<int>("unlink_cfl", it.value().value<int>("cfl", 0)), // cfl
+					it.value().value<int>("unlink_cfl_prop", it.value().value<int>("cfl_prop", 0)) // cfl
 				};
 
 				s.rwys.emplace(si.rwy, si);
@@ -610,7 +634,7 @@ validation CDelHel::ProcessFlightPlan(EuroScopePlugIn::CFlightPlan& fp, bool nap
 			res.tag = "RWY";
 			continue;
 		}
-		
+
 		std::map<std::string, ::sid>::iterator sit;
 		std::smatch m;
 		if (std::regex_search(*rit, m, REGEX_SPEED_LEVEL_GROUP)) {
@@ -643,6 +667,7 @@ validation CDelHel::ProcessFlightPlan(EuroScopePlugIn::CFlightPlan& fp, bool nap
 	}
 
 	if (validateOnly) {
+
 		if (this->warnRFLBelowCFL && fp.GetFinalAltitude() < sid.cfl) {
 			res.tag = "RFL";
 			res.color = TAG_COLOR_ORANGE;
@@ -660,13 +685,58 @@ validation CDelHel::ProcessFlightPlan(EuroScopePlugIn::CFlightPlan& fp, bool nap
 			}
 		}
 
-		// Display a warning if the CFL does not match the initial CFL assigned to the SID. No warning is shown if the RFL is below the CFL for the SID as pilots might request a lower initial climb.
-		if (cfl != sid.cfl && (cfl != fp.GetFinalAltitude() || fp.GetFinalAltitude() >= sid.cfl)) {
-			res.valid = false;
-			res.tag = "CFL";
+		std::int32_t sidcfl;
+		std::string airtype;
+		airtype = fpd.GetEngineType();
 
-			return res;
+		std::string rwycfl = fpd.GetDepartureRwy();
+		auto rwycfl2 = sid.rwys.find(rwycfl);
+		if (rwycfl2 != sid.rwys.end()) {
+			sidinfo sidinfo = rwycfl2->second;
+
+			if (airtype == "T" || airtype == "P") {
+				if ((unlink && sidinfo.unlink_prop_dep != "")) {
+					sidcfl = sidinfo.unlink_cfl_prop;
+				}
+				else if (sidinfo.prop_dep != "") {
+					sidcfl = sidinfo.cfl_prop;
+					this->LogMessage("GOING INTO classic" + sidinfo.cfl_prop, cs);
+				}
+				else {
+					res.valid = false;
+					res.tag = "SID";
+					res.color = TAG_COLOR_RED;
+
+					return res;
+				}
+			}
+			else {
+				if ((unlink && sidinfo.unlink_jet_dep != "")) {
+					sidcfl = sidinfo.unlink_cfl;
+				}
+				else if (sidinfo.jet_dep != "") {
+					sidcfl = sidinfo.cfl;
+				}
+				else {
+					res.valid = false;
+					res.tag = "SID";
+					res.color = TAG_COLOR_RED;
+
+					return res;
+				}
+			}
+
+			// Display a warning if the CFL does not match the initial CFL assigned to the SID. No warning is shown if the RFL is below the CFL for the SID as pilots might request a lower initial climb.
+			if (cfl != sidcfl && (cfl != fp.GetFinalAltitude() || fp.GetFinalAltitude() >= sidcfl)) {
+				res.valid = false;
+				res.tag = "CFL";
+
+				return res;
+			}
+
 		}
+
+
 	}
 	else {
 		if (!fpd.SetRoute(join(route).c_str())) {
@@ -726,15 +796,45 @@ validation CDelHel::ProcessFlightPlan(EuroScopePlugIn::CFlightPlan& fp, bool nap
 			return res;
 		}
 
+		std::string airtype;
+		airtype = fpd.GetEngineType();
+
 		sidinfo sidinfo = sit->second;
 
 		std::ostringstream sssid;
+
 		if (nap && sidinfo.nap != "") {
 			sssid << sidinfo.nap;
 		}
-		else {
-			sssid << sidinfo.dep;
+		else if (airtype == "T" || airtype == "P") {
+			if (unlink && sidinfo.unlink_prop_dep != "") {
+				sssid << sidinfo.unlink_prop_dep;
+			}
+			else if (sidinfo.prop_dep != "") {
+				sssid << sidinfo.prop_dep;
+			}
+			else {
+				this->LogMessage("Invalid flightplan, no matching SID found for this aircraft", cs);
+
+				return res;
+			}
 		}
+		else {
+			if (unlink && sidinfo.unlink_jet_dep != "") {
+				sssid << sidinfo.unlink_jet_dep;
+			}
+			else if (sidinfo.jet_dep != "") {
+				sssid << sidinfo.jet_dep;
+			}
+			else {
+				this->LogMessage("Invalid flightplan, no matching SID found for this aircraft", cs);
+
+				return res;
+			}
+		}
+
+		this->LogDebugMessage("Aircraft " + airtype, cs);
+
 		sssid << "/" << rwy;
 
 		route.insert(route.begin(), sssid.str());
@@ -749,11 +849,25 @@ validation CDelHel::ProcessFlightPlan(EuroScopePlugIn::CFlightPlan& fp, bool nap
 			return res;
 		}
 
-		int cfl = sid.cfl;
-		if (fp.GetFinalAltitude() < sid.cfl) {
-			this->LogDebugMessage("Flightplan has RFL below initial CFL for SID, setting RFL", cs);
+		int cfl;
 
-			cfl = fp.GetFinalAltitude();
+		if (airtype == "T" || airtype == "P") {
+			cfl = sidinfo.cfl_prop; // choix de CFL
+
+			if (fp.GetFinalAltitude() < sidinfo.cfl_prop) {
+				this->LogDebugMessage("Flightplan has RFL below initial CFL for SID, setting RFL", cs);
+
+				cfl = fp.GetFinalAltitude();
+			}
+		}
+		else {
+			cfl = sidinfo.cfl; // choix de CFL
+
+			if (fp.GetFinalAltitude() < sidinfo.cfl) {
+				this->LogDebugMessage("Flightplan has RFL below initial CFL for SID, setting RFL", cs);
+
+				cfl = fp.GetFinalAltitude();
+			}
 		}
 
 		if (!cad.SetClearedAltitude(cfl)) {
@@ -782,10 +896,32 @@ validation CDelHel::ProcessFlightPlan(EuroScopePlugIn::CFlightPlan& fp, bool nap
 			}
 		}
 
-		this->LogDebugMessage("Successfully processed flightplan", cs);
+		if (this->radarScreen == nullptr) {
+			this->LogDebugMessage("Radar screen not initialised, cannot trigger automatic squawk assignment via TopSky or CCAMS", cs);
+		}
+		else {
+			if (this->preferTopSkySquawkAssignment && this->topSkyAvailable) {
+				this->radarScreen->StartTagFunction(cs.c_str(), nullptr, 0, cs.c_str(), TOPSKY_PLUGIN_NAME, TOPSKY_TAG_FUNC_ASSIGN_SQUAWK, POINT(), RECT());
+				this->LogDebugMessage("Triggered automatic squawk assignment via TopSky", cs);
+			}
+			else if (this->ccamsAvailable) {
+				this->radarScreen->StartTagFunction(cs.c_str(), nullptr, 0, cs.c_str(), CCAMS_PLUGIN_NAME, CCAMS_TAG_FUNC_ASSIGN_SQUAWK_AUTO, POINT(), RECT());
+				this->LogDebugMessage("Triggered automatic squawk assignment via CCAMS", cs);
+			}
+			else if (this->topSkyAvailable) {
+				this->radarScreen->StartTagFunction(cs.c_str(), nullptr, 0, cs.c_str(), TOPSKY_PLUGIN_NAME, TOPSKY_TAG_FUNC_ASSIGN_SQUAWK, POINT(), RECT());
+				this->LogDebugMessage("Triggered automatic squawk assignment via TopSky", cs);
+			}
+			else {
+				this->LogDebugMessage("Neither TopSky nor CCAMS are loaded, cannot trigger automatic squawk assignment", cs);
+			}
+		}
+
+		this->LogDebugMessage("Successfully processed flightplan " + airtype, cs);
 
 		// Add to list of processed flightplans if not added by auto-processing already
 		this->IsFlightPlanProcessed(fp);
+
 	}
 
 
@@ -804,13 +940,13 @@ validation CDelHel::ProcessFlightPlan(EuroScopePlugIn::CFlightPlan& fp, bool nap
 				if (vait->waypts.size() > 1) {
 					try {
 
-						
+
 						count = 0; //counter to disregard previous found waypoints in fpl
 						for (auto wyprouit = vait->waypts.begin(); wyprouit != vait->waypts.end(); ++wyprouit) {
 							for (auto wypfpl = fpl.route.begin() + count; wypfpl != fpl.route.end(); ++wypfpl) {
 
 								if (wypfpl->airway && wypfpl->name.rfind(*wyprouit) == 0) { // check if waypoint name is part of the airway (e.g. SID)
-									
+
 									routecheck = true;
 									++count;
 									break;

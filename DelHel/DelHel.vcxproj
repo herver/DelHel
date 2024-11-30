@@ -75,6 +75,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>..\..\..\..\..\Desktop\DEBUG</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -227,6 +228,7 @@
     <None Include="res\DelHel.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\EuroScope\EuroScopePlugIn.h" />
     <ClInclude Include="airport.h" />
     <ClInclude Include="CDelHel.h" />
     <ClInclude Include="constants.h" />

@@ -193,6 +193,12 @@ Toggles automatic assignment of NAP SIDs for the [default processing](#process-f
 
 This setting will be saved to the EuroScope settings upon exit.
 
+`.delhel unlink`
+
+Toggles automatic assignment of Unlink SIDs for the [default processing](#process-fpl) functionality (LFPG/LFPO).
+
+This setting will be saved to the EuroScope settings upon exit.
+
 #### Reload airport config
 
 `.delhel reload`
@@ -294,11 +300,13 @@ The `airports.json` file is a [JSON](https://www.json.org/) file containing a to
 
 #### `RWY` object
 
-| Key  | Type     | Description                                                                              | Required |
-| ---- | -------- | ---------------------------------------------------------------------------------------- | -------- |
-| dep  | `string` | Full name of SID for RWY                                                                 | Yes      |
-| nap  | `string` | Full name of NAP for RWY (if available)                                                  | No       |
-| prio | `int`    | Priority of RWY for SID if no RWY is assigned by EuroScope (higher number = higher prio) | No       |
+| Key        | Type     | Description                                                                              | Required |
+| ---------- | -------- | ---------------------------------------------------------------------------------------- | -------- |
+| dep        | `string` | Full name of SID for RWY                                                                 | Yes      |
+| unlink_dep | `int`    | Full name of Unlink SID for RWY (if available)                                           | No
+| nap        | `string` | Full name of NAP for RWY (if available)                                                  | No       |
+| prio       | `int`    | Priority of RWY for SID if no RWY is assigned by EuroScope (higher number = higher prio) | No       |
+| cfl        | `int`    | Initial CFL for SID in feet (ft)                                                         | Yes      |
 
 ### Routing config
 
